@@ -4,14 +4,13 @@ import { sendUserOperation } from "@/utils/transaction";
 import { CHAIN_NAMESPACES, SafeEventEmitterProvider } from "@web3auth/base";
 import { Web3Auth } from "@web3auth/modal";
 import { OpenloginAdapter } from "@web3auth/openlogin-adapter";
-import { getAddress, JsonRpcProvider, parseEther, toQuantity, Wallet } from "ethers";
+import { JsonRpcProvider, parseEther, toQuantity, Wallet } from "ethers";
 import { useEffect, useState } from "react";
-import { Client, Presets } from "userop";
+import { Presets } from "userop";
 
 export default function Home() {
   const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
   const [account, setAccount] = useState<Presets.Builder.SimpleAccount | null>(null);
-  const [provider, setProvider] = useState<SafeEventEmitterProvider | null>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
   const [privateKey, setPrivateKey] = useState<string | null>(null);
   const [events, setEvents] = useState<string[]>([
@@ -47,12 +46,9 @@ export default function Home() {
         web3auth.configureAdapter(openloginAdapter);
 
         setWeb3auth(web3auth);
-        if (web3auth.provider) {
-          setProvider(web3auth.provider);
-        }
         await web3auth.initModal();
 
-        setAuthorized(web3auth).catch(console.log);
+        // setAuthorized(web3auth);
       } catch (error) {
         console.error(error);
       } finally {
@@ -74,11 +70,10 @@ export default function Home() {
   };
 
   const getPrivateKey = async () => {
-    if (!provider) {
-      console.log("provider not initialized yet");
-      return;
+    if (!web3auth?.provider) {
+      throw new Error("provider not initialized yet");
     }
-    const rpc = new EthereumRpc(provider);
+    const rpc = new EthereumRpc(web3auth.provider);
     const privateKey = await rpc.getPrivateKey();
     return privateKey;
   };
@@ -130,7 +125,6 @@ export default function Home() {
     setAccount(null);
     setIdToken(null);
     setPrivateKey(null);
-    setProvider(null);
     window.localStorage.clear();
   };
 
