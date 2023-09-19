@@ -4,7 +4,7 @@ import { sendUserOperation } from "@/utils/transaction";
 import { CHAIN_NAMESPACES, SafeEventEmitterProvider } from "@web3auth/base";
 import { Web3Auth } from "@web3auth/modal";
 import { OpenloginAdapter } from "@web3auth/openlogin-adapter";
-import { JsonRpcProvider, parseEther, toQuantity, Wallet } from "ethers";
+import { ethers, JsonRpcProvider, parseEther, toQuantity, Wallet } from "ethers";
 import { useEffect, useState } from "react";
 import { Presets } from "userop";
 
@@ -139,11 +139,15 @@ export default function Home() {
     }
     addEvent("Sending transaction...");
 
+    const tokenAddress = "0x4140e9176E201d2c495Bf3b88650Cf1266109dF1"; 
     const to = "0x858E244B392A566Af387a27798d2B4A73D367CA3";
     const value = parseEther("0");
-    const data = "0x";
+    const data = new ethers.Interface([
+      'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes calldata data)'
+    ]).encodeFunctionData('safeTransferFrom', [account.getSender(), to, 0, parseEther('0.0016'), ethers.toUtf8Bytes('')]);
+
     const res = await sendUserOperation({
-      userOperation: account.execute(to, value, data),
+      userOperation: account.execute(tokenAddress, value, data),
       opts: {
         onBuild: async (op) => {
           addEvent(`Signed UserOperation: `);
