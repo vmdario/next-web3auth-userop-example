@@ -24,7 +24,6 @@ export default class EthereumRpc {
     try {
       const ethersProvider = new ethers.BrowserProvider(this.provider);
       const signer = await ethersProvider.getSigner();
-
       // Get user's Ethereum public address
       const address = signer.getAddress();
 
@@ -82,15 +81,14 @@ export default class EthereumRpc {
     }
   }
 
-  async signMessage() {
+  async signMessage(message: string) {
     try {
       const ethersProvider = new ethers.BrowserProvider(this.provider);
-      const signer = ethersProvider.getSigner();
-
-      const originalMessage = "YOUR_MESSAGE";
+      const signer = await ethersProvider.getSigner();
+      console.log(signer);
 
       // Sign the message
-      const signedMessage = await (await signer).signMessage(originalMessage);
+      const signedMessage = await signer.signMessage(message);
 
       return signedMessage;
     } catch (error) {
