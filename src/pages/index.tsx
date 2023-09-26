@@ -10,9 +10,9 @@ import { Presets } from "userop";
 
 export default function Home() {
   const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
-  const [account, setAccount] = useState<Presets.Builder.SimpleAccount | null>(null);
-  const [normalAccount, setNormalAccount] = useState<Wallet | null>(null);
+  const [account, setAccount] = useState<Presets.Builder.Kernel | null>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
+  const [normalAccount, setNormalAccount] = useState<Wallet | null>(null);
   const [privateKey, setPrivateKey] = useState<string | null>(null);
   const [events, setEvents] = useState<string[]>([
     `A sample application to demonstrate how to integrate self-custodial\nsocial login and transacting with Web3Auth and userop.js.`,
@@ -61,13 +61,17 @@ export default function Home() {
   }, []);
 
   const createAccount = async (privateKey: string) => {
-    return await Presets.Builder.SimpleAccount.init(
-      new Wallet(privateKey) as any,
-      rpcUrl,
-      ENTRY_POINT_ADDRESS,
-      SIMPLE_ACCOUNT_FACTORY_ADDRESS,
-      Presets.Middleware.verifyingPaymaster(pmUrl, PAYMASTER_CONTEXT) // or undefined
-    );
+    return await Presets.Builder.Kernel.init(new Wallet(privateKey) as any, rpcUrl, {
+      entryPoint: ENTRY_POINT_ADDRESS,
+      paymasterMiddleware: Presets.Middleware.verifyingPaymaster(pmUrl, PAYMASTER_CONTEXT), // or undefined
+    });
+    // return await Presets.Builder.SimpleAccount.init(
+    //   new Wallet(privateKey) as any,
+    //   rpcUrl,
+    //   ENTRY_POINT_ADDRESS,
+    //   SIMPLE_ACCOUNT_FACTORY_ADDRESS,
+    //   Presets.Middleware.verifyingPaymaster(pmUrl, PAYMASTER_CONTEXT) // or undefined
+    // );
   };
 
   const getPrivateKey = async () => {
@@ -140,23 +144,27 @@ export default function Home() {
     if (!account) {
       throw new Error("Account not initialized");
     }
-    addEvent("Sending transaction...");
-
-    const tokenAddress = "0x4140e9176E201d2c495Bf3b88650Cf1266109dF1";
-    const to = "0x858E244B392A566Af387a27798d2B4A73D367CA3";
-    const value = parseEther("0");
-    const data = new ethers.Interface([
-      "function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)",
-    ]).encodeFunctionData("permit", [
-      account.getSender(),
-      to,
-      0,
-      parseEther("0.0016"),
-      ethers.toUtf8Bytes(""),
-    ]);
+    addEvent("Sending transactions...");
 
     const res = await sendUserOperation({
-      userOperation: account.execute(tokenAddress, value, data),
+      userOperation: account.executeBatch([
+        {
+          to: "0xaF5ef67C43285f7939bdd5866f64cBf9Aa38C58C",
+          value: "0",
+          data: new ethers.Interface(["function transfer(address to, uint256 amount)"]).encodeFunctionData("transfer", [
+            "0xf310532A8Ce07C78931c7340044C110A3d91CAaE",
+            parseEther("2.043"),
+          ]),
+        },
+        {
+          to: "0xaF5ef67C43285f7939bdd5866f64cBf9Aa38C58C",
+          value: "0",
+          data: new ethers.Interface(["function transfer(address to, uint256 amount)"]).encodeFunctionData("transfer", [
+            "0xf310532A8Ce07C78931c7340044C110A3d91CAaE",
+            parseEther("0.1"),
+          ]),
+        },
+      ]),
       opts: {
         onBuild: async (op) => {
           addEvent(`Signed UserOperation: `);
@@ -178,30 +186,20 @@ export default function Home() {
     }
     addEvent("Approving transaction...");
 
-    const tokenAddress = "0x658e5EA3c7690f0626aFF87cEd6FC30021A93657"; // BRLA
+    const tokenAddress = "0xaF5ef67C43285f7939bdd5866f64cBf9Aa38C58C";
     const spender = "0xf310532A8Ce07C78931c7340044C110A3d91CAaE";
     const value = parseEther("0");
-    const signature = await normalAccount.signMessage(
-      "I, tech+cryptum@brla.digital, document 50869835092, confirm that I am the owner of this address. Current time:" +
-        new Date().getTime()
-    );
-    console.log('signature', signature);
-    account.setSignature(signature);
-    account.setSender(normalAccount.address);
-    const { r, s, v } = ethers.Signature.from(signature);
     // const data = new ethers.Interface([
     //   "function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)",
     // ]).encodeFunctionData("permit", [account.getSender(), tokenAddress, parseEther("50"), ethers.MaxUint256, v, r, s]);
 
-    const data = new ethers.Interface([
-      "function approve(address spender, uint256 value)",
-    ]).encodeFunctionData("approve", [spender, parseEther("10")]);
-
-    console.log(data);
-    addEvent(JSON.stringify({ r, s, v }, null, 1));
+    const data = new ethers.Interface(["function approve(address spender, uint256 value)"]).encodeFunctionData(
+      "approve",
+      [spender, parseEther("1")]
+    );
 
     const res = await sendUserOperation({
-      userOperation: account.execute(tokenAddress, value, data),
+      userOperation: account.executeBatch([{ to: tokenAddress, value, data }]),
       opts: {
         onBuild: async (op) => {
           addEvent(`Signed UserOperation: `);
@@ -226,7 +224,7 @@ export default function Home() {
         new Date().getTime()
     );
     setEvents([`Signed message: ${signedMessage}`]);
-    addEvent(JSON.stringify(ethers, null, 1));
+    addEvent(JSON.stringify(ethers.Signature.from(signedMessage), null, 1));
   };
 
   const getSmartAccountSignature = async () => {

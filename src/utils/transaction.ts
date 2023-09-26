@@ -10,7 +10,7 @@ export async function sendUserOperation({
 }) {
   const { rpcUrl } = getEnvConfig();
 
-  const client = await Client.init(rpcUrl, ENTRY_POINT_ADDRESS);
+  const client = await Client.init(rpcUrl, { entryPoint: ENTRY_POINT_ADDRESS });
   console.log(userOperation, opts);
   return await client.sendUserOperation(userOperation, opts);
 }
