@@ -1,5 +1,6 @@
 import { ENTRY_POINT_ADDRESS, PAYMASTER_CONTEXT, SIMPLE_ACCOUNT_FACTORY_ADDRESS, getEnvConfig } from "@/config";
 import EthereumRpc from "@/utils/ethersRpc";
+import { generateSignedPermit } from "@/utils/permit";
 import { sendUserOperation } from "@/utils/transaction";
 import { CHAIN_NAMESPACES } from "@web3auth/base";
 import { Web3Auth } from "@web3auth/modal";
@@ -179,56 +180,60 @@ export default function Home() {
     addEvent(`Transaction hash: ${ev?.transactionHash ?? null}`);
   };
 
-  const approveAmount = async () => {
-    setEvents([]);
-    if (!account || !normalAccount) {
-      throw new Error("Account not initialized");
-    }
-    addEvent("Approving transaction...");
+  // const approveAmount = async () => {
+  //   setEvents([]);
+  //   if (!account || !normalAccount) {
+  //     throw new Error("Account not initialized");
+  //   }
+  //   addEvent("Approving transaction...");
 
-    const tokenAddress = "0xaF5ef67C43285f7939bdd5866f64cBf9Aa38C58C";
-    const spender = "0xf310532A8Ce07C78931c7340044C110A3d91CAaE";
-    const value = parseEther("0");
-    // const data = new ethers.Interface([
-    //   "function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)",
-    // ]).encodeFunctionData("permit", [account.getSender(), tokenAddress, parseEther("50"), ethers.MaxUint256, v, r, s]);
+  //   const tokenAddress = "0xaF5ef67C43285f7939bdd5866f64cBf9Aa38C58C";
+  //   const spender = "0xf310532A8Ce07C78931c7340044C110A3d91CAaE";
+  //   const value = parseEther("0");
 
-    const data = new ethers.Interface(["function approve(address spender, uint256 value)"]).encodeFunctionData(
-      "approve",
-      [spender, parseEther("1")]
-    );
+  //   const data = new ethers.Interface(["function approve(address spender, uint256 value)"]).encodeFunctionData(
+  //     "approve",
+  //     [spender, parseEther("1")]
+  //   );
 
-    const res = await sendUserOperation({
-      userOperation: account.executeBatch([{ to: tokenAddress, value, data }]),
-      opts: {
-        onBuild: async (op) => {
-          addEvent(`Signed UserOperation: `);
-          addEvent(JSON.stringify(op, null, 2) as any);
-        },
-      },
-    });
-    addEvent(`UserOpHash: ${res.userOpHash}`);
+  //   const res = await sendUserOperation({
+  //     userOperation: account.executeBatch([{ to: tokenAddress, value, data }]),
+  //     opts: {
+  //       onBuild: async (op) => {
+  //         addEvent(`Signed UserOperation: `);
+  //         addEvent(JSON.stringify(op, null, 2) as any);
+  //       },
+  //     },
+  //   });
+  //   addEvent(`UserOpHash: ${res.userOpHash}`);
 
-    addEvent("Waiting for transaction...");
-    const ev = await res.wait();
-    addEvent(`Transaction hash: ${ev?.transactionHash ?? null}`);
-  };
+  //   addEvent("Waiting for transaction...");
+  //   const ev = await res.wait();
+  //   addEvent(`Transaction hash: ${ev?.transactionHash ?? null}`);
+  // };
 
   const signMessage = async () => {
-    if (!web3auth?.provider) {
+    if (!web3auth?.provider || !normalAccount) {
       throw new Error("provider not initialized yet");
     }
-    const rpc = new EthereumRpc(web3auth.provider);
-    const signedMessage = await rpc.signMessage(
-      "I, tech+cryptum@brla.digital, document 50869835092, confirm that I am the owner of this address. Current time:" +
-        new Date().getTime()
-    );
-    setEvents([`Signed message: ${signedMessage}`]);
-    addEvent(JSON.stringify(ethers.Signature.from(signedMessage), null, 1));
-  };
-
-  const getSmartAccountSignature = async () => {
-    setEvents([`Signature: ${account?.getSignature().toString()}`]);
+    const privateKey = await getPrivateKey();
+    const deadline = new Date();
+    deadline.setHours(deadline.getHours() + 2);
+    console.log(deadline.getTime());
+    const signature = await generateSignedPermit(
+      'BRLA Token',
+      '1',
+      false,
+      normalAccount.address,
+      '0x5DDdbb3B1c528c5c4d2C805ba0dAd7a412e1fD50', // spender for burning
+      '0x658e5EA3c7690f0626aFF87cEd6FC30021A93657', // verifying contract (BRLA token contract)
+      80001,
+      ethers.parseEther('50'),
+      0,
+      ethers.toBigInt(deadline.getTime()),
+      privateKey,
+    )
+    setEvents([JSON.stringify(signature, null, 1)]);
   };
 
   if (loading) {
@@ -276,18 +281,12 @@ export default function Home() {
                     {/* <p className={`m-0 max-w-[30ch] text-sm`} style={{ color: "black" }}>
                       <input id="sign-message-input" type="text" />
                     </p> */}
-                    <button
-                      className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-                      onClick={() => getSmartAccountSignature()}
-                    >
-                      <h2 className={`mb-3 text-2xl font-semibold`}>Get smart account signature </h2>
-                    </button>
-                    <button
+                    {/* <button
                       className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
                       onClick={() => approveAmount()}
                     >
                       <h2 className={`mb-3 text-2xl font-semibold`}>Approve amount</h2>
-                    </button>
+                    </button> */}
                     <button
                       className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
                       onClick={() => (privateKey ? setEvents([`private key: ${privateKey}`]) : undefined)}
